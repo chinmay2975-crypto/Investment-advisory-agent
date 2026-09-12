@@ -33,3 +33,17 @@ def ingest_documents(docs: list[GroundingDocument]) -> int:
         ],
     )
     return len(docs)
+
+
+def query_context(query_text: str, n_results: int = 5) -> list[dict]:
+    collection = get_market_intelligence_collection()
+    results = collection.query(query_texts=[query_text], n_results=n_results)
+
+    documents = results.get("documents", [[]])[0]
+    metadatas = results.get("metadatas", [[]])[0]
+    distances = results.get("distances", [[]])[0]
+
+    return [
+        {"text": doc, "metadata": meta, "distance": dist}
+        for doc, meta, dist in zip(documents, metadatas, distances)
+    ]

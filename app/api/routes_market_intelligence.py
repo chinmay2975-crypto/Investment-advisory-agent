@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.agents.market_intelligence.graph import market_intelligence_graph
 from app.agents.market_intelligence.nodes import CATEGORY_KEYS
-from app.services.chroma_client import get_market_intelligence_collection
+from app.services.chroma_client import query_context
 
 router = APIRouter(prefix="/market-intelligence", tags=["market-intelligence"])
 
@@ -16,16 +16,4 @@ def refresh():
 
 @router.get("/query")
 def query(q: str, n_results: int = 5):
-    collection = get_market_intelligence_collection()
-    results = collection.query(query_texts=[q], n_results=n_results)
-
-    documents = results.get("documents", [[]])[0]
-    metadatas = results.get("metadatas", [[]])[0]
-    distances = results.get("distances", [[]])[0]
-
-    return {
-        "results": [
-            {"text": doc, "metadata": meta, "distance": dist}
-            for doc, meta, dist in zip(documents, metadatas, distances)
-        ]
-    }
+    return {"results": query_context(q, n_results)}

@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
 
 
 class RecommendationOutput(BaseModel):
@@ -10,7 +12,21 @@ class RecommendationOutput(BaseModel):
     """
 
     what: str
+    target_allocation: dict[str, float]
+    suggested_instruments: list[str]
     why: str
     expected_behavior: str
     goal_probability: float
     risks: list[str]
+
+
+class RecommendationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    investor_id: int
+    goal_id: int | None
+    status: str
+    payload: dict
+    llm_provider: str | None
+    generated_at: datetime
