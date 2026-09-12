@@ -1,0 +1,5 @@
+{
+  "Conservative": {"stocks": 40, "bonds": 60},
+  "Balanced": {"stocks": 60, "bonds": 40},
+  "Aggressive": {"stocks": 85, "bonds": 15}
+}

@@ -10,6 +10,7 @@ from app.schemas.investor import (
     InvestorProfileRead,
     InvestorProfileUpsert,
 )
+from app.services.allocation import get_default_allocation
 
 router = APIRouter(prefix="/investors", tags=["investors"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -56,3 +57,15 @@ def upsert_profile(investor_id: int, payload: InvestorProfileUpsert, db: Session
     db.commit()
     db.refresh(profile)
     return profile
+
+
+@router.get("/{investor_id}/profile/allocation-template")
+def get_allocation_template(investor_id: int, db: Session = Depends(get_db)):
+    profile = db.query(InvestorProfile).filter(InvestorProfile.investor_id == investor_id).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Investor profile not found")
+
+    try:
+        return get_default_allocation(profile.risk_cadence)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

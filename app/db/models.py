@@ -55,6 +55,7 @@ class Goal(Base):
     current_amount = Column(Float, default=0.0)
     target_date = Column(DateTime, nullable=False)
     contribution_cadence = Column(String, nullable=True)  # e.g. monthly, quarterly
+    contribution_amount = Column(Float, nullable=True)
     goal_risk_override = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
