@@ -1,0 +1,21 @@
+from datetime import datetime
+
+from pydantic import BaseModel
+
+
+class GoalCreate(BaseModel):
+    category: str
+    target_amount: float
+    current_amount: float = 0.0
+    target_date: datetime
+    contribution_cadence: str | None = None
+    goal_risk_override: str | None = None
+
+
+class GoalRead(GoalCreate):
+    id: int
+    investor_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

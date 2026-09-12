@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: investad-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: investad
+      POSTGRES_PASSWORD: investad
+      POSTGRES_DB: investad
+    ports:
+      - "5432:5432"
+    volumes:
+      - investad_pg_data:/var/lib/postgresql/data
+
+volumes:
+  investad_pg_data:
