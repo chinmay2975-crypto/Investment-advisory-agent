@@ -11,7 +11,7 @@ passlib[bcrypt]
 langgraph
 langchain-core
 chromadb
-google-generativeai
+google-genai
 groq
 streamlit
 python-dotenv
