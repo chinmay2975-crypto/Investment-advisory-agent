@@ -19,3 +19,5 @@ python-dotenv
 apscheduler
 httpx
 yfinance
+python-multipart
+reportlab

@@ -4,6 +4,7 @@ from app.config import settings
 from app.schemas.market_intelligence import GroundingDocument
 
 COLLECTION_NAME = "market_intelligence"
+REFLECTION_COLLECTION_NAME = "recommendation_reflections"
 
 _client = None
 
@@ -17,6 +18,39 @@ def get_client() -> chromadb.ClientAPI:
 
 def get_market_intelligence_collection():
     return get_client().get_or_create_collection(name=COLLECTION_NAME)
+
+
+def get_reflection_collection():
+    return get_client().get_or_create_collection(name=REFLECTION_COLLECTION_NAME)
+
+
+def query_similar_reflections(query_text: str, n_results: int = 3) -> list[dict]:
+    """Semantic retrieval of similar past self-assessment reflections, for Reflexion-style
+    long-term memory: grounds each new reflection in how similar past recommendations played out.
+    """
+    collection = get_reflection_collection()
+    count = collection.count()
+    if count == 0:
+        return []
+
+    results = collection.query(query_texts=[query_text], n_results=min(n_results, count))
+    documents = results.get("documents", [[]])[0]
+    metadatas = results.get("metadatas", [[]])[0]
+    distances = results.get("distances", [[]])[0]
+
+    return [
+        {"text": doc, "metadata": meta, "distance": dist}
+        for doc, meta, dist in zip(documents, metadatas, distances)
+    ]
+
+
+def ingest_reflection(evaluation_id: int, recommendation_id: int, text: str, metadata: dict) -> None:
+    collection = get_reflection_collection()
+    collection.upsert(
+        ids=[f"evaluation:{evaluation_id}"],
+        documents=[text],
+        metadatas=[{"recommendation_id": recommendation_id, **metadata}],
+    )
 
 
 def ingest_documents(docs: list[GroundingDocument]) -> int:

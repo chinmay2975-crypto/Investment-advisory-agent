@@ -3,10 +3,13 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Goal, Investor
 from app.db.session import get_db
+from app.dependencies import require_self
 from app.schemas.goal import GoalCreate, GoalRead, GoalAnalysis
 from app.services.goal_analysis import analyze_goal as compute_goal_analysis, GoalAnalysisError, DEFAULT_ASSUMED_RETURN
 
-router = APIRouter(prefix="/investors/{investor_id}/goals", tags=["goals"])
+router = APIRouter(
+    prefix="/investors/{investor_id}/goals", tags=["goals"], dependencies=[Depends(require_self)]
+)
 
 
 @router.post("/", response_model=GoalRead)

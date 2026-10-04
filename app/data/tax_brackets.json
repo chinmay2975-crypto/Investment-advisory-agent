@@ -1,0 +1,12 @@
+{
+  "single": [
+    {"up_to": 47025, "rate": 0.0},
+    {"up_to": 518900, "rate": 0.15},
+    {"up_to": null, "rate": 0.20}
+  ],
+  "married_filing_jointly": [
+    {"up_to": 94050, "rate": 0.0},
+    {"up_to": 583750, "rate": 0.15},
+    {"up_to": null, "rate": 0.20}
+  ]
+}

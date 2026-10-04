@@ -1,19 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.db.models import Investor, InvestorProfile
 from app.db.session import get_db
+from app.dependencies import require_self
 from app.schemas.investor import (
     InvestorCreate,
     InvestorRead,
     InvestorProfileRead,
     InvestorProfileUpsert,
 )
+from app.security import hash_password
 from app.services.allocation import get_default_allocation
 
 router = APIRouter(prefix="/investors", tags=["investors"])
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 @router.post("/", response_model=InvestorRead)
@@ -23,7 +23,7 @@ def create_investor(payload: InvestorCreate, db: Session = Depends(get_db)):
 
     investor = Investor(
         email=payload.email,
-        hashed_password=pwd_context.hash(payload.password),
+        hashed_password=hash_password(payload.password),
         full_name=payload.full_name,
     )
     db.add(investor)
@@ -33,15 +33,28 @@ def create_investor(payload: InvestorCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{investor_id}", response_model=InvestorRead)
-def get_investor(investor_id: int, db: Session = Depends(get_db)):
+def get_investor(investor_id: int, db: Session = Depends(get_db), _: Investor = Depends(require_self)):
     investor = db.get(Investor, investor_id)
     if investor is None:
         raise HTTPException(status_code=404, detail="Investor not found")
     return investor
 
 
+@router.get("/{investor_id}/profile", response_model=InvestorProfileRead)
+def get_profile(investor_id: int, db: Session = Depends(get_db), _: Investor = Depends(require_self)):
+    profile = db.query(InvestorProfile).filter(InvestorProfile.investor_id == investor_id).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Investor profile not found")
+    return profile
+
+
 @router.put("/{investor_id}/profile", response_model=InvestorProfileRead)
-def upsert_profile(investor_id: int, payload: InvestorProfileUpsert, db: Session = Depends(get_db)):
+def upsert_profile(
+    investor_id: int,
+    payload: InvestorProfileUpsert,
+    db: Session = Depends(get_db),
+    _: Investor = Depends(require_self),
+):
     investor = db.get(Investor, investor_id)
     if investor is None:
         raise HTTPException(status_code=404, detail="Investor not found")
@@ -60,7 +73,9 @@ def upsert_profile(investor_id: int, payload: InvestorProfileUpsert, db: Session
 
 
 @router.get("/{investor_id}/profile/allocation-template")
-def get_allocation_template(investor_id: int, db: Session = Depends(get_db)):
+def get_allocation_template(
+    investor_id: int, db: Session = Depends(get_db), _: Investor = Depends(require_self)
+):
     profile = db.query(InvestorProfile).filter(InvestorProfile.investor_id == investor_id).first()
     if profile is None:
         raise HTTPException(status_code=404, detail="Investor profile not found")

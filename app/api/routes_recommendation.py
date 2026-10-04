@@ -1,16 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from app.db.models import Goal, Investor, InvestorProfile, Recommendation
 from app.db.session import get_db
+from app.dependencies import require_self
 from app.llm.factory import get_router
 from app.schemas.recommendation import RecommendationRead
 from app.services.allocation import get_default_allocation
 from app.services.chroma_client import query_context
 from app.services.goal_analysis import analyze_goal, GoalAnalysisError
+from app.services.pdf_export import build_investment_target_sheet
 from app.services.recommendation_engine import build_prompt, generate_recommendation
 
-router = APIRouter(prefix="/investors/{investor_id}/recommendations", tags=["recommendations"])
+router = APIRouter(
+    prefix="/investors/{investor_id}/recommendations",
+    tags=["recommendations"],
+    dependencies=[Depends(require_self)],
+)
+
+# Forward-only status transitions per the tech-stack doc: pending -> approved -> confirmed.
+NEXT_STATUS = {"pending": "approved", "approved": "confirmed"}
 
 
 def _to_dict(model, fields: list[str]) -> dict:
@@ -87,3 +96,62 @@ def get_recommendation(investor_id: int, recommendation_id: int, db: Session = D
     if recommendation is None:
         raise HTTPException(status_code=404, detail="Recommendation not found")
     return recommendation
+
+
+def _get_recommendation_or_404(investor_id: int, recommendation_id: int, db: Session) -> Recommendation:
+    recommendation = (
+        db.query(Recommendation)
+        .filter(Recommendation.investor_id == investor_id, Recommendation.id == recommendation_id)
+        .first()
+    )
+    if recommendation is None:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    return recommendation
+
+
+def _advance_status(investor_id: int, recommendation_id: int, expected_current: str, db: Session) -> Recommendation:
+    recommendation = _get_recommendation_or_404(investor_id, recommendation_id, db)
+    if recommendation.status != expected_current:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Recommendation must be '{expected_current}' to perform this transition "
+            f"(currently '{recommendation.status}')",
+        )
+    recommendation.status = NEXT_STATUS[expected_current]
+    db.commit()
+    db.refresh(recommendation)
+    return recommendation
+
+
+@router.post("/{recommendation_id}/approve", response_model=RecommendationRead)
+def approve_recommendation(investor_id: int, recommendation_id: int, db: Session = Depends(get_db)):
+    return _advance_status(investor_id, recommendation_id, "pending", db)
+
+
+@router.post("/{recommendation_id}/confirm", response_model=RecommendationRead)
+def confirm_recommendation(investor_id: int, recommendation_id: int, db: Session = Depends(get_db)):
+    return _advance_status(investor_id, recommendation_id, "approved", db)
+
+
+@router.get("/{recommendation_id}/export-pdf")
+def export_recommendation_pdf(investor_id: int, recommendation_id: int, db: Session = Depends(get_db)):
+    recommendation = _get_recommendation_or_404(investor_id, recommendation_id, db)
+
+    investor = db.get(Investor, investor_id)
+    goal = db.get(Goal, recommendation.goal_id) if recommendation.goal_id else None
+    if goal is None:
+        raise HTTPException(status_code=400, detail="Recommendation has no associated goal to export")
+
+    pdf_bytes = build_investment_target_sheet(
+        investor={"email": investor.email, "full_name": investor.full_name},
+        goal={"category": goal.category, "target_amount": goal.target_amount, "target_date": goal.target_date},
+        recommendation={"status": recommendation.status, "payload": recommendation.payload},
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="investment-target-sheet-{recommendation.id}.pdf"'
+        },
+    )

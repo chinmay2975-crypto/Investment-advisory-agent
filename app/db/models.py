@@ -91,6 +91,59 @@ class Recommendation(Base):
     evaluations = relationship("RecommendationEvaluation", back_populates="recommendation")
 
 
+class RefinementSession(Base):
+    __tablename__ = "refinement_sessions"
+
+    id = Column(Integer, primary_key=True)
+    investor_id = Column(Integer, ForeignKey("investors.id"), nullable=False)
+    goal_id = Column(Integer, ForeignKey("goals.id"), nullable=False)
+    origin_recommendation_id = Column(Integer, ForeignKey("recommendations.id"), nullable=False)
+    current_recommendation_id = Column(Integer, ForeignKey("recommendations.id"), nullable=False)
+    active_constraints = Column(JSON, default=dict)  # {"exclusions": [...], "tilts": [...], "other": [...]}
+    status = Column(String, default="open")  # open / closed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    investor = relationship("Investor")
+    goal = relationship("Goal")
+    messages = relationship(
+        "RefinementMessage", back_populates="session", order_by="RefinementMessage.created_at"
+    )
+
+
+class RefinementMessage(Base):
+    __tablename__ = "refinement_messages"
+
+    id = Column(Integer, primary_key=True)
+    session_id = Column(Integer, ForeignKey("refinement_sessions.id"), nullable=False)
+    turn_number = Column(Integer, nullable=False)
+    user_message = Column(Text, nullable=False)
+    resulting_recommendation_id = Column(Integer, ForeignKey("recommendations.id"), nullable=False)
+    llm_provider = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("RefinementSession", back_populates="messages")
+    resulting_recommendation = relationship("Recommendation")
+
+
+class ScenarioRun(Base):
+    __tablename__ = "scenario_runs"
+
+    id = Column(Integer, primary_key=True)
+    investor_id = Column(Integer, ForeignKey("investors.id"), nullable=False)
+    goal_id = Column(Integer, ForeignKey("goals.id"), nullable=False)
+    conservative_recommendation_id = Column(Integer, ForeignKey("recommendations.id"), nullable=False)
+    balanced_recommendation_id = Column(Integer, ForeignKey("recommendations.id"), nullable=False)
+    aggressive_recommendation_id = Column(Integer, ForeignKey("recommendations.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    investor = relationship("Investor")
+    goal = relationship("Goal")
+    conservative_recommendation = relationship("Recommendation", foreign_keys=[conservative_recommendation_id])
+    balanced_recommendation = relationship("Recommendation", foreign_keys=[balanced_recommendation_id])
+    aggressive_recommendation = relationship("Recommendation", foreign_keys=[aggressive_recommendation_id])
+
+
 class RecommendationEvaluation(Base):
     __tablename__ = "recommendation_evaluations"
 
