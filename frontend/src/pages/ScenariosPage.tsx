@@ -17,7 +17,7 @@ const VARIANTS = [
 ] as const;
 
 function VariantCard({ label, icon, rec }: { label: string; icon: string; rec: Recommendation }) {
-  const p = rec.payload as { what?: string; goal_probability?: number; target_allocation?: Record<string, number>; risks?: string[] };
+  const p = rec.payload as { what?: string; goal_probability?: number; goal_probability_method?: string; target_allocation?: Record<string, number>; risks?: string[] };
   return (
     <Card>
       <CardHeader>
@@ -25,7 +25,9 @@ function VariantCard({ label, icon, rec }: { label: string; icon: string; rec: R
           <span>
             {icon} {label}
           </span>
-          <Badge>{Math.round((p.goal_probability ?? 0) * 100)}% goal prob.</Badge>
+          <Badge title={p.goal_probability_method === "monte_carlo" ? "Monte Carlo simulation of this allocation" : "LLM estimate"}>
+            {Math.round((p.goal_probability ?? 0) * 100)}% goal prob.{p.goal_probability_method === "monte_carlo" ? " (simulated)" : ""}
+          </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">

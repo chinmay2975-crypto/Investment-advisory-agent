@@ -87,3 +87,28 @@ def test_create_scenario_run_returns_three_distinct_recommendations(
     )
     assert get_response.status_code == 200
     assert get_response.json()["id"] == body["id"]
+
+
+class SameProbabilityClient(LLMClient):
+    """Mimics the real bug: the LLM returns the same goal_probability for every risk level."""
+
+    name = "fake"
+
+    def generate(self, prompt, schema):
+        stocks = 30 if "Conservative" in prompt else 90 if "Aggressive" in prompt else 60
+        return _output_for("pick").model_copy(update={"target_allocation": {"stocks": stocks, "bonds": 100 - stocks}})
+
+
+def test_scenario_probabilities_are_simulated_not_llm_guesses(client, db_session, monkeypatch, auth_headers):
+    investor, goal = _seed_investor_profile_goal(db_session)
+    monkeypatch.setattr("app.api.routes_scenario.query_context", lambda *a, **k: [])
+    monkeypatch.setattr("app.agents.scenario.nodes.get_router", lambda: LLMRouter([SameProbabilityClient()]))
+
+    body = client.post(f"/investors/{investor.id}/goals/{goal.id}/scenarios/", headers=auth_headers(investor.id)).json()
+    payloads = [body[f"{v}_recommendation"]["payload"] for v in ("conservative", "balanced", "aggressive")]
+
+    assert all(p["goal_probability_method"] == "monte_carlo" for p in payloads)
+    assert all(p["llm_goal_probability"] == 0.7 for p in payloads)
+    assert len({p["goal_probability"] for p in payloads}) == 3
+    vols = [p["simulation"]["volatility"] for p in payloads]
+    assert vols == sorted(vols)  # conservative < balanced < aggressive

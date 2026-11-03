@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.dependencies import require_self
 from app.schemas.scenario import ScenarioRunRead
 from app.services.chroma_client import query_context
+from app.services.goal_simulation import apply_goal_simulation
 from app.services.goal_analysis import GoalAnalysisError, analyze_goal
 
 router = APIRouter(
@@ -68,7 +69,7 @@ def create_scenario_run(investor_id: int, goal_id: int, db: Session = Depends(ge
             investor_id=investor_id,
             goal_id=goal_id,
             status="pending",
-            payload=result[variant],
+            payload=apply_goal_simulation(result[variant], goal_dict, profile.country),
             llm_provider=result[f"{variant}_provider"],
         )
         db.add(recommendation)

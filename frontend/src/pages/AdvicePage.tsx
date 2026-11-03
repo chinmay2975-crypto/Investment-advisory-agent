@@ -64,7 +64,7 @@ function SectionBody({ section }: { section: AdviceSection }) {
           <div className="h-full bg-primary" style={{ width: `${Math.round(content * 100)}%` }} />
         </div>
         <span className="font-medium">{Math.round(content * 100)}%</span>
-        <span className="text-xs text-muted-foreground">model estimate, not a promise</span>
+        <span className="text-xs text-muted-foreground">an estimate, not a promise</span>
       </div>
     );
   }

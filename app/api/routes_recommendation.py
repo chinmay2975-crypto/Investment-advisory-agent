@@ -8,6 +8,7 @@ from app.llm.factory import get_router
 from app.schemas.recommendation import RecommendationRead
 from app.services.allocation import get_default_allocation
 from app.services.chroma_client import query_context
+from app.services.goal_simulation import apply_goal_simulation
 from app.services.goal_analysis import analyze_goal, GoalAnalysisError
 from app.services.pdf_export import build_investment_target_sheet
 from app.services.recommendation_engine import build_prompt, generate_recommendation
@@ -72,7 +73,7 @@ def create_recommendation(investor_id: int, goal_id: int, db: Session = Depends(
         investor_id=investor_id,
         goal_id=goal_id,
         status="pending",
-        payload=output.model_dump(),
+        payload=apply_goal_simulation(output.model_dump(), goal_dict, profile.country),
         llm_provider=provider_name,
     )
     db.add(recommendation)

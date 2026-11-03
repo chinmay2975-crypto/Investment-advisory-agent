@@ -14,6 +14,7 @@ from app.db.session import get_db
 from app.dependencies import get_current_investor
 from app.schemas.analysis import Lookback, PortfolioHoldingIn
 from app.services.allocation import get_default_allocation
+from app.services.goal_simulation import apply_goal_simulation
 from app.services.goal_analysis import GoalAnalysisError, analyze_goal
 
 router = APIRouter(prefix="/advice", tags=["advice"])
@@ -171,8 +172,14 @@ def stream_advice(
                         following = order[position + 1]
                         yield _sse("stage", {"stage": following, "label": labels[following], "status": "started"})
 
-            recommendation = state["recommendation"]
+            recommendation = apply_goal_simulation(state["recommendation"], goal_dict, state["country_code"])
             for key, title in SECTIONS:
+                if key == "goal_probability":
+                    title = (
+                        "Goal probability (simulated over 5,000 market paths)"
+                        if recommendation.get("goal_probability_method") == "monte_carlo"
+                        else "Goal probability (model estimate — no goal selected)"
+                    )
                 yield _sse("section", {"key": key, "title": title, "content": recommendation[key]})
             yield _sse(
                 "section",

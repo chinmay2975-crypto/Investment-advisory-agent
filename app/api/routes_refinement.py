@@ -16,6 +16,7 @@ from app.schemas.recommendation import RecommendationRead
 from app.schemas.refinement import RefinementRequest, RefinementSessionRead
 from app.services.allocation import get_default_allocation
 from app.services.chroma_client import query_context
+from app.services.goal_simulation import apply_goal_simulation
 from app.services.goal_analysis import GoalAnalysisError, analyze_goal
 
 router = APIRouter(
@@ -137,7 +138,7 @@ def refine_recommendation(
         investor_id=investor_id,
         goal_id=goal.id,
         status="pending",
-        payload=result["new_recommendation"],
+        payload=apply_goal_simulation(result["new_recommendation"], goal_dict, profile.country),
         llm_provider=result["llm_provider"],
     )
     db.add(new_recommendation)
