@@ -1,2 +1,4 @@
 -r requirements.txt
 pytest==9.1.1
+playwright==1.62.0  # browser smoke tests in tests/e2e (also: python -m playwright install chromium)
+httpx==0.28.1

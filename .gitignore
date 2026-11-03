@@ -12,3 +12,6 @@ chroma_db/
 .logs/
 frontend/dist/
 frontend/tsconfig.tsbuildinfo
+ci.db
+ci_chroma/
+server.log
