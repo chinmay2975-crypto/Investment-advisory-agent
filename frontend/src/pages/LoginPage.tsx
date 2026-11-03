@@ -1,10 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Activity, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
+import { fetchAuthFeatures } from "@/api/auth";
 import { useAuth } from "@/auth/AuthContext";
 import { GENERAL_NOTICE } from "@/components/Disclaimer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -34,6 +35,11 @@ export default function LoginPage() {
   const { login, signup } = useAuth();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [canResetByEmail, setCanResetByEmail] = useState(false);
+
+  useEffect(() => {
+    fetchAuthFeatures().then((f) => setCanResetByEmail(f.password_reset_email));
+  }, []);
 
   const loginForm = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
   const signupForm = useForm<SignupValues>({ resolver: zodResolver(signupSchema) });
@@ -96,6 +102,13 @@ export default function LoginPage() {
                 <Button className="w-full" disabled={loginForm.formState.isSubmitting}>
                   {loginForm.formState.isSubmitting && <Loader2 className="animate-spin" />} Log in
                 </Button>
+                {canResetByEmail && (
+                  <p className="text-center text-sm">
+                    <Link to="/forgot-password" className="text-primary hover:underline">
+                      Forgot password?
+                    </Link>
+                  </p>
+                )}
               </form>
             </TabsContent>
 

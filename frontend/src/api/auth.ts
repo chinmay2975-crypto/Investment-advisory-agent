@@ -133,3 +133,47 @@ export async function signup(email: string, password: string, fullName?: string)
   }
   return login(email, password);
 }
+
+async function postJson(path: string, body: unknown, authenticated: boolean, fallback: string): Promise<Response> {
+  const doFetch = authenticated ? authFetch : fetch;
+  const res = await doFetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new ApiError(res.status, describeError(await res.json().catch(() => null), fallback));
+  return res;
+}
+
+/** Changing the password revokes old refresh tokens, so store the fresh pair the API returns. */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await postJson(
+    "/auth/change-password",
+    { current_password: currentPassword, new_password: newPassword },
+    true,
+    "Could not change the password",
+  );
+  const body = await res.json();
+  tokenStore.setSession(body.access_token, body.refresh_token, body.investor_id);
+}
+
+export async function deleteAccount(password: string): Promise<void> {
+  await postJson("/auth/delete-account", { password }, true, "Could not delete the account");
+  tokenStore.clear();
+}
+
+export async function requestPasswordReset(email: string): Promise<string> {
+  const res = await postJson("/auth/forgot-password", { email }, false, "Could not send the reset e-mail");
+  return (await res.json()).detail;
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const res = await postJson("/auth/reset-password", { token, new_password: newPassword }, false, "Could not reset the password");
+  const body = await res.json();
+  tokenStore.setSession(body.access_token, body.refresh_token, body.investor_id);
+}
+
+export async function fetchAuthFeatures(): Promise<{ password_reset_email: boolean }> {
+  const res = await fetch(`${API_BASE}/auth/features`).catch(() => null);
+  return res?.ok ? res.json() : { password_reset_email: false };
+}

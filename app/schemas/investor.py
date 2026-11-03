@@ -7,7 +7,7 @@ from app.countries import list_countries, normalize_country_code
 
 class InvestorCreate(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8)
     full_name: str | None = None
 
 

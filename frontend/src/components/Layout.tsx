@@ -5,6 +5,7 @@ import {
   GitCompare,
   Globe,
   LayoutDashboard,
+  KeyRound,
   LogOut,
   type LucideIcon,
   MessageSquareText,
@@ -35,6 +36,7 @@ const NAV: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/market", label: "Market data", icon: Globe },
   { to: "/self-assessment", label: "Self-assessment", icon: RefreshCcw },
   { to: "/onboarding", label: "Profile & country", icon: UserRound },
+  { to: "/account", label: "Account", icon: KeyRound },
 ];
 
 export function Layout() {

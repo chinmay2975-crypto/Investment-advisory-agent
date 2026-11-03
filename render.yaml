@@ -19,6 +19,16 @@ services:
         sync: false
       - key: NEWSAPI_KEY
         sync: false
+      - key: SMTP_HOST      # optional: enables "Forgot password?" e-mails
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: APP_BASE_URL   # e.g. https://investad.onrender.com
+        sync: false
       - key: CORS_ORIGINS   # same-origin by default; only needed if the UI is hosted elsewhere
         value: ""
     # Paid plans only: keep ChromaDB reflections across deploys.

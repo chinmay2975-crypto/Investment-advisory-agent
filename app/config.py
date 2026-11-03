@@ -19,6 +19,14 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"  # comma-separated
     self_assessment_horizon_days: int = 30
     self_assessment_interval_hours: int = 24
+    # Password reset e-mail. Leave smtp_host empty to disable "forgot password" (the API returns 503).
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    app_base_url: str = "http://localhost:5173"  # where the reset link points
+    password_reset_expire_minutes: int = 30
 
 
 settings = Settings()
