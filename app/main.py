@@ -2,13 +2,17 @@ from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
+    routes_advice,
     routes_auth,
+    routes_countries,
     routes_goals,
     routes_holdings,
     routes_investor,
     routes_market_intelligence,
+    routes_portfolio,
     routes_recommendation,
     routes_refinement,
     routes_scenario,
@@ -39,7 +43,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="InvestAd API", lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(routes_auth.router)
+app.include_router(routes_countries.router)
+app.include_router(routes_portfolio.router)
+app.include_router(routes_advice.router)
 app.include_router(routes_investor.router)
 app.include_router(routes_goals.router)
 app.include_router(routes_holdings.router)

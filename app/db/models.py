@@ -40,6 +40,8 @@ class InvestorProfile(Base):
     horizon_years = Column(Integer, nullable=True)
     preferences = Column(JSON, default=dict)  # e.g. sector preferences, ESG flags
     restrictions = Column(JSON, default=dict)  # e.g. excluded tickers/sectors
+    country = Column(String, nullable=True)  # CountryConfig code (IN / US / GB); user override
+    base_currency = Column(String, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     investor = relationship("Investor", back_populates="profile")

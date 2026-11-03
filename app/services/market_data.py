@@ -2,7 +2,15 @@ import yfinance as yf
 
 from app.schemas.market_intelligence import GroundingDocument
 
-INDEX_TICKERS = {"^GSPC": "S&P 500", "^DJI": "Dow Jones Industrial Average", "^IXIC": "Nasdaq Composite"}
+INDEX_TICKERS = {
+    "^GSPC": ("S&P 500", "US"),
+    "^DJI": ("Dow Jones Industrial Average", "US"),
+    "^IXIC": ("Nasdaq Composite", "US"),
+    "^NSEI": ("Nifty 50", "IN"),
+    "^BSESN": ("BSE Sensex", "IN"),
+    "^FTSE": ("FTSE 100", "GB"),
+}
+# US SPDR sector ETFs.
 SECTOR_TICKERS = {
     "XLK": "Technology",
     "XLF": "Financials",
@@ -16,7 +24,7 @@ SECTOR_TICKERS = {
 }
 
 
-def _pct_change_document(ticker: str, label: str, category: str) -> GroundingDocument | None:
+def _pct_change_document(ticker: str, label: str, category: str, country: str) -> GroundingDocument | None:
     history = yf.Ticker(ticker).history(period="5d")
     if history.empty or len(history) < 2:
         return None
@@ -36,15 +44,17 @@ def _pct_change_document(ticker: str, label: str, category: str) -> GroundingDoc
         source="yfinance",
         category=category,
         as_of=as_of,
-        metadata={"ticker": ticker, "label": label, "pct_change": round(float(pct_change), 4)},
+        metadata={"ticker": ticker, "label": label, "pct_change": round(float(pct_change), 4), "country": country},
     )
 
 
 def fetch_index_performance() -> list[GroundingDocument]:
-    docs = [_pct_change_document(t, label, "market_behavior") for t, label in INDEX_TICKERS.items()]
+    docs = [
+        _pct_change_document(t, label, "market_behavior", country) for t, (label, country) in INDEX_TICKERS.items()
+    ]
     return [d for d in docs if d is not None]
 
 
 def fetch_sector_performance() -> list[GroundingDocument]:
-    docs = [_pct_change_document(t, label, "sector_performance") for t, label in SECTOR_TICKERS.items()]
+    docs = [_pct_change_document(t, label, "sector_performance", "US") for t, label in SECTOR_TICKERS.items()]
     return [d for d in docs if d is not None]

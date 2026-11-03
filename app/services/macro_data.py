@@ -43,7 +43,7 @@ def _series_document(series_id: str, label: str, category: str) -> GroundingDocu
         source="FRED",
         category=category,
         as_of=as_of,
-        metadata={"series_id": series_id, "label": label, "value": value},
+        metadata={"series_id": series_id, "label": label, "value": value, "country": "US"},
     )
 
 

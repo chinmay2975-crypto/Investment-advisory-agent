@@ -2,7 +2,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Type
 
-from app.llm.base import LLMClient, ProviderError, SchemaT
+from app.llm.base import Image, LLMClient, ProviderError, SchemaT
 
 DEFAULT_COOLDOWN_SECONDS = 30.0
 
@@ -42,16 +42,32 @@ class LLMRouter:
         self._states: list[ProviderState] = [ProviderState(client=p) for p in providers]
         self._next_index = 0
 
-    def generate(self, prompt: str, schema: Type[SchemaT]) -> tuple[SchemaT, str]:
-        """Returns (result, provider_name) so callers can log which provider served the request."""
+    def generate(
+        self,
+        prompt: str,
+        schema: Type[SchemaT],
+        images: list[Image] | None = None,
+        prefer: str | None = None,
+    ) -> tuple[SchemaT, str]:
+        """Returns (result, provider_name) so callers can log which provider served the request.
+
+        `prefer` names a provider to try first when it is available (e.g. the one that is more
+        accurate for a task); the others remain fallbacks, so alternation on errors still applies.
+        """
         order = self._ordered_states()
+        if prefer:
+            order.sort(key=lambda s: s.client.name != prefer)  # stable: keeps round-robin among the rest
         last_error: Exception | None = None
+
+        def call(client: LLMClient) -> SchemaT:
+            # Only pass images when there are some, so text-only clients keep their simple signature.
+            return client.generate(prompt, schema, images=images) if images else client.generate(prompt, schema)
 
         for state in order:
             if not state.is_available():
                 continue
             try:
-                result = state.client.generate(prompt, schema)
+                result = call(state.client)
             except ProviderError as exc:
                 cooldown = exc.retry_after if exc.retry_after else DEFAULT_COOLDOWN_SECONDS
                 state.mark_cooling_down(cooldown)
@@ -67,7 +83,7 @@ class LLMRouter:
         if wait > 0:
             time.sleep(wait)
         try:
-            result = soonest.client.generate(prompt, schema)
+            result = call(soonest.client)
         except ProviderError as exc:
             raise exc if last_error is None else last_error
         soonest.mark_success()

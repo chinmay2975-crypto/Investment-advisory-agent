@@ -1,73 +1,94 @@
 # InvestAd
 
-Multi-agent investment advisory platform. See [docs/tech-stack.md](docs/tech-stack.md) for the full architecture and build order — this scaffold covers **Step 1** (FastAPI skeleton, Postgres schema, LLM provider abstraction).
+Country-aware investment advisory agent: a FastAPI backend with LangGraph agents (including a
+Reflexion-style self-assessment loop), Gemini + Groq LLMs alternating on rate limits/errors,
+and a React frontend. Supports **India, the US and the UK**: the market is inferred from your
+tickers (`.NS`/`.BO` India, `.L` UK, no suffix US) and you can override it.
+
+> InvestAd provides general information for educational purposes, not licensed financial, tax
+> or investment advice.
 
 ## Prerequisites
 
-- Python 3.11+
-- Docker Desktop (for local Postgres)
-- A Gemini API key — get one free at [aistudio.google.com](https://aistudio.google.com/app/apikey)
-- A Groq API key — get one free at [console.groq.com](https://console.groq.com/keys)
+- Python 3.11+ and Node.js 20+
+- A Postgres database (Supabase works; `docker compose up -d` gives a local one on port 5433)
+- API keys: Gemini, Groq, FRED, NewsAPI (all have free tiers)
 
-## Setup
+## Setup (PowerShell)
 
-```bash
+```powershell
+# Backend
 python -m venv .venv
-.venv\Scripts\activate          # Windows
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-
-copy .env.example .env          # then fill in GEMINI_API_KEY, GROQ_API_KEY, JWT_SECRET
-
-docker compose up -d            # starts Postgres on localhost:5432
-alembic revision --autogenerate -m "initial schema"
+Copy-Item .env.example .env        # fill in DATABASE_URL, API keys, and a random JWT_SECRET
 alembic upgrade head
 
-uvicorn app.main:app --reload   # FastAPI on http://localhost:8000
+# Frontend
+cd frontend
+npm install
+cd ..
 ```
 
-In a second terminal:
+`DATABASE_URL` uses `postgresql+psycopg2://...`. Percent-encode special characters in the
+password (e.g. `@` becomes `%40`).
 
-```bash
-streamlit run frontend/streamlit_app.py   # Streamlit on http://localhost:8501
+## Run
+
+Two terminals:
+
+```powershell
+# Terminal 1 - API on http://127.0.0.1:8000 (Swagger UI at /docs)
+.\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload
 ```
 
-## Verify
+```powershell
+# Terminal 2 - React app on http://localhost:5173
+cd frontend
+npm run dev
+```
 
-- `http://localhost:8000/health` → `{"status": "ok"}`
-- `http://localhost:8000/docs` → interactive API docs
-- Streamlit dashboard page shows "FastAPI backend reachable"
-- `pytest` → health check test passes
+The Vite dev server proxies `/api/*` to the backend, so the browser never makes cross-origin
+calls in development. CORS is still configured (`CORS_ORIGINS` in `.env`) for direct access.
+
+## Test
+
+```powershell
+pytest                                # backend: no network, synthetic market data
+cd frontend; npm run build            # frontend: typecheck + production build
+```
+
+After changing backend schemas, regenerate the typed API client (backend must be running):
+
+```powershell
+cd frontend; npm run gen:api
+```
+
+## Key endpoints (try them in Swagger UI at /docs)
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /countries` | Supported countries: currency, benchmark, risk-free proxy, tax summary, accounts, disclaimer |
+| `POST /countries/infer` | Infer a portfolio's country from tickers, with confidence and mixed-country breakdown |
+| `POST /portfolio/import` | Read holdings from almost any file or pasted text: CSV/TSV, Excel/ODS, JSON, PDF (incl. scans), Word, saved web pages, or a screenshot/photo. Columns are matched automatically and tickers are checked against market data. Nothing is saved until you review and save |
+| `POST /portfolio/analyze` | Allocation by country/sector/asset class, returns, volatility, Sharpe, beta, max drawdown, HHI, currency exposure |
+| `POST /advice/stream` | Server-Sent Events: the advice agent's stages, resolved country and suggestion sections as they are produced |
+
+Authenticate in Swagger with the **Authorize** button: use your email as the username.
 
 ## Project layout
 
 ```
 app/
-  main.py          FastAPI entrypoint
-  config.py        env/settings
-  db/              SQLAlchemy models + session
-  llm/             LLMClient interface, Gemini/Groq clients, fallback router
-  schemas/         Pydantic request/response models
-  api/             route handlers
-  agents/          LangGraph nodes/subgraphs (future engines)
-alembic/           DB migrations
-frontend/          Streamlit app
-tests/
-docs/              reference docs (tech stack, product spec)
+  countries/   one config per country (strategy pattern) + offline country inference
+  agents/      LangGraph graphs: advice, market_intelligence, refinement, scenario, self_assessment
+  api/         FastAPI routers          services/  analysis, market data, tax, PDF, etc.
+  llm/         Gemini/Groq clients behind a router with cooldown + fallback
+frontend/      Vite + React + TypeScript, Tailwind + shadcn/ui, TanStack Query, Recharts
+tests/         pytest suite
+docs/          tech-stack.md (original design), llm-context.md (current state for AI assistants)
 ```
 
-## Next steps
-
-Steps 1-8 of the [build order](docs/tech-stack.md#6-suggested-build-order) are in place:
-
-- FastAPI/Postgres skeleton, Investor Profile + Goal Engine
-- Market Intelligence agents + ChromaDB ingestion
-- AI Recommendation Engine
-- Interactive Refinement (`POST /investors/{id}/recommendations/{id}/refine`, backed by a LangGraph subgraph in `app/agents/refinement/`)
-- Portfolio Analysis (`app/api/routes_holdings.py` — manual entry, CSV upload, and `GET .../holdings/analysis` for allocation/sector exposure/risk profile via `app/services/portfolio_analysis.py`)
-- Scenario Engine (`POST /investors/{id}/goals/{id}/scenarios/`, backed by a parallel LangGraph subgraph in `app/agents/scenario/` that runs Conservative/Balanced/Aggressive variants)
-- Approval flow + PDF export (`POST .../recommendations/{id}/approve`, `.../confirm`, and `GET .../recommendations/{id}/export-pdf` for the Investment Target Sheet via `app/services/pdf_export.py`)
-
-- Tax Analysis module (`POST .../holdings/tax-analysis` via `app/services/tax_calculator.py` — deterministic short/long-term capital gains estimate, no LLM)
-- Self-Assessment (`app/agents/self_assessment/`) — a Reflexion-style actor/evaluator/reflection loop: `evaluate` computes realized-vs-expected return deviation (yfinance), `retrieve_similar` pulls semantically similar past evaluations from a new ChromaDB collection (`recommendation_reflections`), `reflect` produces a structured reflection via the LLM router, and the result is logged to `recommendation_evaluations` and re-ingested into ChromaDB as precedent for future evaluations — never fed back into the Recommendation Engine automatically. Runs via an APScheduler job (`app/jobs/self_assessment_job.py`, started on app startup, interval configurable via `self_assessment_interval_hours`) evaluating recommendations older than `self_assessment_horizon_days` (default 30) that haven't been evaluated yet; also triggerable manually via `POST .../recommendations/{id}/evaluations/`.
-
-All 11 build-order steps now have at least a working implementation. Remaining polish: a real dashboard (step 9's Streamlit console is a dev test harness, not the target UI) and real JWT auth (currently any client can access any `investor_id`).
+Adding a country: create `app/countries/<country>.py` with a `CountryConfig`, register it in
+`app/countries/registry.py`, and it flows through inference, analysis, prompts and the UI.

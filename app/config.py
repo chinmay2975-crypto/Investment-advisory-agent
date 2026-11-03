@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     login_rate_limit_max_attempts: int = 5
     login_rate_limit_window_minutes: int = 15
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"  # comma-separated
     self_assessment_horizon_days: int = 30
     self_assessment_interval_hours: int = 24
 

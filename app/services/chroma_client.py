@@ -69,9 +69,13 @@ def ingest_documents(docs: list[GroundingDocument]) -> int:
     return len(docs)
 
 
-def query_context(query_text: str, n_results: int = 5) -> list[dict]:
-    collection = get_market_intelligence_collection()
-    results = collection.query(query_texts=[query_text], n_results=n_results)
+def _run_query(collection, query_text: str, n_results: int, where: dict | None = None) -> list[dict]:
+    if n_results <= 0:
+        return []
+    kwargs = {"query_texts": [query_text], "n_results": n_results}
+    if where:
+        kwargs["where"] = where
+    results = collection.query(**kwargs)
 
     documents = results.get("documents", [[]])[0]
     metadatas = results.get("metadatas", [[]])[0]
@@ -81,3 +85,25 @@ def query_context(query_text: str, n_results: int = 5) -> list[dict]:
         {"text": doc, "metadata": meta, "distance": dist}
         for doc, meta, dist in zip(documents, metadatas, distances)
     ]
+
+
+def query_context(query_text: str, n_results: int = 5, country: str | None = None) -> list[dict]:
+    """With `country`, documents tagged with that country come first, topped up with
+    untagged/global documents (e.g. news) so the context is never empty just because a
+    market has little country-specific data ingested yet.
+    """
+    collection = get_market_intelligence_collection()
+    if not country:
+        return _run_query(collection, query_text, n_results)
+
+    try:
+        country_docs = _run_query(collection, query_text, n_results, where={"country": country})
+    except Exception:  # e.g. no documents carry the metadata key yet
+        country_docs = []
+    seen = {doc["text"] for doc in country_docs}
+    others = [
+        doc
+        for doc in _run_query(collection, query_text, n_results * 2)
+        if doc["text"] not in seen and doc["metadata"].get("country") in (None, country)
+    ]
+    return (country_docs + others)[:n_results]

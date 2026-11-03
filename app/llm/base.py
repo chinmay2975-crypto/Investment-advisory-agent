@@ -4,6 +4,7 @@ from typing import Type, TypeVar
 from pydantic import BaseModel
 
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
+Image = tuple[bytes, str]  # (raw bytes, mime type such as "image/jpeg")
 
 
 class ProviderError(Exception):
@@ -25,10 +26,11 @@ class LLMClient(ABC):
     name: str
 
     @abstractmethod
-    def generate(self, prompt: str, schema: Type[SchemaT]) -> SchemaT:
+    def generate(self, prompt: str, schema: Type[SchemaT], images: list[Image] | None = None) -> SchemaT:
         """Call the provider and return output validated/coerced into `schema`.
 
-        Raises ProviderError on rate-limit or transient failures so the
-        router can mark this provider cooling_down and retry elsewhere.
+        `images` are optional attachments (e.g. a broker screenshot). Raises ProviderError on
+        rate-limit or transient failures so the router can mark this provider cooling_down
+        and retry elsewhere.
         """
         raise NotImplementedError

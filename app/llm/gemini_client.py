@@ -3,8 +3,9 @@ from typing import Type
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
+from pydantic import ValidationError
 
-from app.llm.base import LLMClient, ProviderError, SchemaT
+from app.llm.base import Image, LLMClient, ProviderError, SchemaT
 
 
 class GeminiClient(LLMClient):
@@ -14,21 +15,29 @@ class GeminiClient(LLMClient):
         self._client = genai.Client(api_key=api_key)
         self._model = model
 
-    def generate(self, prompt: str, schema: Type[SchemaT]) -> SchemaT:
+    def generate(self, prompt: str, schema: Type[SchemaT], images: list[Image] | None = None) -> SchemaT:
+        contents = [prompt, *(types.Part.from_bytes(data=data, mime_type=mime) for data, mime in images)] if images else prompt
         try:
             response = self._client.models.generate_content(
                 model=self._model,
-                contents=prompt,
+                contents=contents,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    response_schema=schema,
+                    # response_json_schema, not response_schema: the latter rejects dict fields
+                    # (additionalProperties) with a client-side ValueError on the Developer API.
+                    response_json_schema=schema.model_json_schema(),
                 ),
             )
         except APIError as exc:
             retry_after = _extract_retry_after(exc)
             raise ProviderError(str(exc), status_code=exc.code or 500, retry_after=retry_after) from exc
+        except Exception as exc:  # noqa: BLE001 - SDK-side failures must still trigger router fallback
+            raise ProviderError(str(exc), status_code=500) from exc
 
-        return schema.model_validate_json(response.text)
+        try:
+            return schema.model_validate_json(response.text)
+        except (ValidationError, TypeError) as exc:
+            raise ProviderError(f"Gemini returned output not matching the schema: {exc}", status_code=502) from exc
 
 
 def _extract_retry_after(exc: APIError) -> float | None:
