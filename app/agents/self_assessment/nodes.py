@@ -18,9 +18,12 @@ ORIGINAL RECOMMENDATION
 
 MEASURED OUTCOME ({elapsed_days} days later)
 - Realized average return across suggested instruments: {realized_return_pct:.2f}%
-- Return implied by the goal-planning assumption over the same period: {expected_return_pct:.2f}%
+- Return expected over the same period ({expected_source}): {expected_return_pct:.2f}%
 - Deviation (realized - expected): {deviation_pct:+.2f} percentage points
+- Market benchmark over the same period: {benchmark_line}
 - Per-instrument returns: {per_instrument}
+Judge the recommendation mainly against the benchmark: a loss in a falling market is not by itself
+a bad recommendation, and a gain that trailed the market is not by itself a good one.
 
 SIMILAR PAST EVALUATIONS (retrieved by semantic similarity, for precedent — not ground truth)
 {precedent_section}
@@ -54,6 +57,18 @@ def retrieve_similar_node(state: SelfAssessmentState) -> dict:
     return {"similar_reflections": similar}
 
 
+def _benchmark_line(deviation: dict) -> str:
+    bench = deviation.get("benchmark_return_pct")
+    if bench is None:
+        return "unavailable"
+    name = deviation.get("benchmark_name") or deviation.get("benchmark_ticker")
+    line = f"{name} returned {bench:.2f}%"
+    excess = deviation.get("excess_vs_benchmark_pct")
+    if excess is not None:
+        line += f"; the suggestion beat it by {excess:+.2f} percentage points"
+    return line
+
+
 def build_reflection_prompt(payload: dict, deviation: dict, similar_reflections: list[dict]) -> str:
     if similar_reflections:
         precedent_section = "\n".join(
@@ -72,6 +87,12 @@ def build_reflection_prompt(payload: dict, deviation: dict, similar_reflections:
         realized_return_pct=deviation["realized_return_pct"],
         expected_return_pct=deviation["expected_return_pct"],
         deviation_pct=deviation["deviation_pct"],
+        expected_source=(
+            "the return the goal simulation assumed for this allocation"
+            if deviation.get("expected_return_source") == "simulated_allocation"
+            else "a flat 6%/yr planning assumption"
+        ),
+        benchmark_line=_benchmark_line(deviation),
         per_instrument=deviation["per_instrument"],
         precedent_section=precedent_section,
     )

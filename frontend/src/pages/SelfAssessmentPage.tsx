@@ -64,7 +64,12 @@ export default function SelfAssessmentPage() {
           realized_return_pct?: number;
           expected_return_pct?: number;
           deviation_pct?: number;
+          expected_return_source?: string;
+          benchmark_name?: string;
+          benchmark_return_pct?: number | null;
+          excess_vs_benchmark_pct?: number | null;
         };
+        const hasBenchmark = deviation.benchmark_return_pct != null;
         return (
           <Card key={e.id}>
             <CardHeader className="flex-row items-start justify-between">
@@ -77,19 +82,32 @@ export default function SelfAssessmentPage() {
               </Badge>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className={`grid gap-3 ${hasBenchmark ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Realised ({deviation.elapsed_days ?? "?"} days)</p>
                   <p className="text-lg font-semibold">{formatPct((deviation.realized_return_pct ?? 0) / 100, 2)}</p>
                 </div>
                 <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Expected (6%/yr assumption)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Expected ({deviation.expected_return_source === "simulated_allocation" ? "simulated for this mix" : "6%/yr assumption"})
+                  </p>
                   <p className="text-lg font-semibold">{formatPct((deviation.expected_return_pct ?? 0) / 100, 2)}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Deviation</p>
                   <p className="text-lg font-semibold">{(deviation.deviation_pct ?? 0).toFixed(2)} pp</p>
                 </div>
+                {hasBenchmark && (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">{deviation.benchmark_name ?? "Market"} same period</p>
+                    <p className="text-lg font-semibold">{formatPct((deviation.benchmark_return_pct ?? 0) / 100, 2)}</p>
+                    {deviation.excess_vs_benchmark_pct != null && (
+                      <p className="text-xs text-muted-foreground">
+                        {deviation.excess_vs_benchmark_pct >= 0 ? "Beat" : "Trailed"} by {Math.abs(deviation.excess_vs_benchmark_pct).toFixed(2)} pp
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <p className="leading-relaxed">{e.contributing_factors}</p>
             </CardContent>

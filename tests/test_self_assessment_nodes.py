@@ -90,3 +90,25 @@ def test_reflect_node_returns_structured_output_and_provider(monkeypatch):
     assert result["contributing_factors"] == CANNED_REFLECTION.contributing_factors
     assert result["assumptions_held"] is False
     assert result["llm_provider"] == "fake"
+
+
+def test_build_reflection_prompt_includes_benchmark_comparison():
+    prompt = build_reflection_prompt(
+        payload={"what": "Tilt to Indian large caps"},
+        deviation={
+            "elapsed_days": 365,
+            "realized_return_pct": 8.0,
+            "expected_return_pct": 10.0,
+            "expected_return_source": "simulated_allocation",
+            "deviation_pct": -2.0,
+            "benchmark_ticker": "^NSEI",
+            "benchmark_name": "Nifty 50",
+            "benchmark_return_pct": 10.0,
+            "excess_vs_benchmark_pct": -2.0,
+            "per_instrument": {},
+        },
+        similar_reflections=[],
+    )
+    assert "Nifty 50 returned 10.00%" in prompt
+    assert "-2.00 percentage points" in prompt
+    assert "goal simulation assumed" in prompt
