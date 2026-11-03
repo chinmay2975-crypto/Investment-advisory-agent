@@ -48,3 +48,10 @@ def auth_headers():
         return {"Authorization": f"Bearer {create_access_token(subject=str(investor_id))}"}
 
     return _make
+
+
+@pytest.fixture(autouse=True)
+def _no_llm_constraint_split(monkeypatch):
+    """Refinement's LLM constraint splitter must never hit a real provider in tests; default to its
+    keyword fallback. Tests of the splitter itself restore the real function explicitly."""
+    monkeypatch.setattr("app.agents.refinement.nodes._llm_split", lambda message, current: None)
