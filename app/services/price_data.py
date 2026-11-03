@@ -4,6 +4,7 @@ Every network call goes through one of the public functions below so tests can p
 and results are cached per calendar day (prices only change daily for this analysis).
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import date
 from functools import lru_cache
@@ -14,6 +15,8 @@ import yfinance as yf
 from app.config import settings
 from app.countries.base import CountryConfig
 from app.services.macro_data import _fetch_latest_observation
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -99,6 +102,7 @@ def _cached_risk_free_rate(country_code: str, yfinance_ticker: str | None, fred_
                 return RiskFreeRate(rate=float(observation["value"]) / 100, source="live")
         except Exception:
             pass
+    logger.warning("No live risk-free rate for %s (FRED %s); using fallback %.2f%%", country_code, fred_series, fallback * 100)
     return RiskFreeRate(rate=fallback, source="fallback")
 
 

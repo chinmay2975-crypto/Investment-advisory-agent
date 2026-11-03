@@ -14,7 +14,7 @@ INDIA = CountryConfig(
     benchmark_name="Nifty 50",
     risk_free_rate=RiskFreeRateSource(
         label="India 10-year government bond yield",
-        fred_series="IRLTLT01INM156N",
+        fred_series="INDIRLTLT01STM",
         fallback_rate=0.068,
     ),
     ticker_suffixes=(".NS", ".BO"),
