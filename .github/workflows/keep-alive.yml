@@ -1,10 +1,10 @@
 # Free Supabase projects pause after 7 days without activity. This pings an endpoint that runs a
-# real query, every 3 days. Set the repository variable APP_URL (Settings > Secrets and variables >
-# Actions > Variables), e.g. https://investad.onrender.com. Without it the job is a no-op.
+# real query, daily. It also stops a free Hugging Face Space from sleeping (it sleeps after 48 h idle). Set the repository variable APP_URL (Settings > Secrets and variables >
+# Actions > Variables), e.g. https://<user>-investad.hf.space. Without it the job is a no-op.
 name: keep-alive
 on:
   schedule:
-    - cron: "17 6 */3 * *"
+    - cron: "17 6 * * *"
   workflow_dispatch:
 jobs:
   ping:

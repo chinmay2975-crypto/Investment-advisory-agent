@@ -149,9 +149,11 @@ $env:E2E_BASE_URL="http://localhost:5173"; .venv\Scripts\python -m pytest tests/
 
 ## Deploy
 
-One Docker image serves the UI at `/` and the API at `/api`. Configs for Render (`render.yaml`)
-and Fly.io (`fly.toml`) are included, and a GitHub Actions job keeps a free Supabase project from
-pausing. See [docs/DEPLOY.md](docs/DEPLOY.md).
+One Docker image serves the UI at `/` and the API at `/api`. It is hosted free on
+**Hugging Face Spaces**: every push to `main` that passes CI is deployed there by
+`.github/workflows/deploy-hf.yml`. A daily keep-alive job stops the Space from sleeping and stops
+Supabase from pausing. Configs for Render (`render.yaml`) and Fly.io (`fly.toml`) are included as
+alternatives. See [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Project layout
 

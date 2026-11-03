@@ -17,6 +17,39 @@ Without `-AtLogon`, they stop when the PC restarts.
 (`app/serve.py`). The UI is at `/` and the API is at `/api/*`. Because both share one origin,
 nothing needs CORS configuration.
 
+### Hugging Face Spaces (recommended, free)
+
+The app ends up at `https://<hf-username>-<space-name>.hf.space`. GitHub deploys it again after
+every push to `main` that passes CI.
+
+1. **Create the Space.** On huggingface.co, go to **New → Space**. Pick a name (for example
+   `investad`), choose **Docker → Blank** as the SDK, and select the free CPU hardware.
+2. **Add the secrets.** In the Space, go to **Settings → Variables and secrets** and add these as
+   *secrets*:
+   - `DATABASE_URL`: use Supabase's **Session pooler** URI, from **Connect → Session pooler**
+     (`postgresql+psycopg2://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`).
+     Don't use the direct `db.<ref>.supabase.co` host, which is IPv6-only and unreachable from Spaces.
+   - `JWT_SECRET`: any long random string.
+   - `GEMINI_API_KEY` and `GROQ_API_KEY`.
+   - Optional: `FRED_API_KEY`, `NEWSAPI_KEY`, `SMTP_*`.
+   - `APP_BASE_URL`: the `.hf.space` URL.
+3. **Create a token.** On Hugging Face, go to **Settings → Access Tokens** and create a token with
+   **Write** access.
+4. **Connect GitHub.** In the GitHub repository, go to **Settings → Secrets and variables →
+   Actions** and add:
+   - secret `HF_TOKEN`: the token from step 3;
+   - variable `HF_SPACE`: for example `chinmay2975/investad`;
+   - variable `APP_URL`: the `.hf.space` URL. This turns on the daily keep-alive ping, which stops
+     the Space sleeping after 48 h idle and stops Supabase from pausing.
+5. **Deploy.** Go to **Actions → deploy-hf → Run workflow**. The first build takes about 5 minutes,
+   and you can watch it in the Space's **Logs** tab.
+
+Notes:
+- Open the `.hf.space` URL directly. On the huggingface.co Space page, the app runs inside an
+  iframe, so log-in may not persist there.
+- Free Spaces have no persistent disk, so ChromaDB memory resets whenever the Space restarts.
+- If the logs show a connection timeout to the database, the URL is not the session pooler.
+
 ### Render (free tier)
 
 1. In Supabase, go to **Connect → Session pooler** and copy the URI. Change the scheme to
