@@ -1,0 +1,28 @@
+# Fly.io alternative: `fly launch --no-deploy`, `fly volumes create chroma --size 1`,
+# `fly secrets set DATABASE_URL=... JWT_SECRET=... GEMINI_API_KEY=... GROQ_API_KEY=...`, then `fly deploy`.
+app = "investad"
+primary_region = "bom"
+
+[build]
+
+[env]
+  PORT = "8000"
+  CHROMA_PERSIST_DIR = "/data/chroma"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "60s"
+    interval = "30s"
+    timeout = "5s"
+    method = "GET"
+    path = "/api/health"
+
+[mounts]
+  source = "chroma"
+  destination = "/data"

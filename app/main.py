@@ -69,3 +69,16 @@ app.include_router(routes_market_intelligence.router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/health/deep")
+def health_deep():
+    """Touches the database too. The keep-alive workflow calls this so a free Supabase project
+    sees activity and is not paused, and a sleeping free web service is woken up."""
+    from sqlalchemy import text
+
+    from app.db.session import engine
+
+    with engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+    return {"status": "ok", "database": "ok"}

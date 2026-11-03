@@ -9,3 +9,6 @@ chroma_db/
 *.egg-info/
 .vscode/
 .idea/
+.logs/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo

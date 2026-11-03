@@ -1,0 +1,28 @@
+# Render Blueprint: New > Blueprint > pick this repo. Fill the `sync: false` secrets in the dashboard.
+services:
+  - type: web
+    name: investad
+    runtime: docker
+    plan: free            # free: sleeps after 15 min idle; ChromaDB memory resets on each deploy
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL   # Supabase > Connect > Session pooler URI, with postgresql+psycopg2:// scheme
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: NEWSAPI_KEY
+        sync: false
+      - key: CORS_ORIGINS   # same-origin by default; only needed if the UI is hosted elsewhere
+        value: ""
+    # Paid plans only: keep ChromaDB reflections across deploys.
+    # disk:
+    #   name: chroma
+    #   mountPath: /data
+    #   sizeGB: 1
