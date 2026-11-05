@@ -18,6 +18,7 @@ _ASSUMPTIONS = json.loads(
     (Path(__file__).resolve().parent.parent / "data" / "capital_market_assumptions.json").read_text()
 )
 PATHS = 5000
+MAX_MONTHS = 100 * 12  # matches the goal validation; beyond this the assumptions mean nothing
 SEED = 42
 PERIODS_PER_YEAR = {"monthly": 12, "quarterly": 4, "annually": 1}
 
@@ -77,7 +78,7 @@ def simulate_goal(target_allocation: dict, goal: dict, country: str | None = Non
         target_date = datetime.fromisoformat(target_date)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     months = round((target_date.replace(tzinfo=None) - now).days / 30.4375)
-    if months < 1:
+    if months < 1 or months > MAX_MONTHS:
         return None
 
     mean, vol = _portfolio_moments(weights, country)
@@ -88,8 +89,10 @@ def simulate_goal(target_allocation: dict, goal: dict, country: str | None = Non
 
     rng = np.random.default_rng(SEED)
     values = np.full(PATHS, float(goal.get("current_amount") or 0.0))
-    for shock in rng.normal(monthly_mu, monthly_sigma, size=(months, PATHS)):
-        values = (values + monthly_contribution) * np.exp(shock)
+    # One month at a time: memory stays O(paths) however long the horizon. Same draws, same order,
+    # as generating a (months, paths) block, so results are unchanged.
+    for _ in range(months):
+        values = (values + monthly_contribution) * np.exp(rng.normal(monthly_mu, monthly_sigma, size=PATHS))
 
     p10, p50, p90 = np.percentile(values, [10, 50, 90])
     return {

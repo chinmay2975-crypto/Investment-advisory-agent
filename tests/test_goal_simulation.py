@@ -75,3 +75,23 @@ def test_apply_keeps_llm_guess_for_reference():
     assert out["goal_probability_method"] == "monte_carlo"
     assert out["llm_goal_probability"] == 0.78
     assert out["goal_probability"] == out["simulation"]["probability"]
+
+
+def test_memory_stays_flat_for_long_horizons():
+    import tracemalloc
+    from datetime import datetime, timedelta
+
+    goal = {"target_amount": 1e7, "current_amount": 1e5, "target_date": datetime.now() + timedelta(days=99 * 365),
+            "contribution_cadence": "monthly", "contribution_amount": 1e4}
+    tracemalloc.start()
+    result = simulate_goal({"equity": 60, "bonds": 40}, goal, "IN")
+    peak_mb = tracemalloc.get_traced_memory()[1] / 1e6
+    tracemalloc.stop()
+    assert result["months"] > 1000
+    assert peak_mb < 5  # a (months x paths) block would be ~48 MB
+
+
+def test_absurd_horizon_is_not_simulated():
+    from datetime import datetime
+
+    assert simulate_goal({"equity": 100}, {"target_amount": 1, "target_date": datetime(9999, 1, 1)}) is None
